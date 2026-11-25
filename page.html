@@ -551,8 +551,15 @@ async function setFile(id, file) {
       if (id === "apply-rom") {
         state.romCRC = j.crc32;
         renderPatchMeta();
-        const out = document.getElementById("apply-outname");
-        if (!out.value) out.value = defaultOutName(file.name);
+        // 手入力されていなければ、新しいロムから出力名を作り直す
+        // (古い自動入力が残って別ファイルの名前になる事故を防ぐ)
+        if (!applyOutManual) {
+          document.getElementById("apply-outname").value = defaultOutName(file.name);
+        }
+      }
+      if (id === "create-mod" && !createOutManual) {
+        document.getElementById("create-outname").value =
+          defaultPatchName(file.name, document.getElementById("create-format").value);
       }
       renderRomMeta(id);
     }
@@ -561,16 +568,45 @@ async function setFile(id, file) {
   }
 }
 
-function defaultOutName(name) {
+function splitExt(name) {
   const dot = name.lastIndexOf(".");
-  if (dot > 0) return name.slice(0, dot) + " (patched)" + name.slice(dot);
-  return name + " (patched)";
+  if (dot > 0) return [name.slice(0, dot), name.slice(dot)];
+  return [name, ""];
 }
+function defaultOutName(name) {
+  const [base, ext] = splitExt(name);
+  return base + " (patched)" + ext;
+}
+const PATCH_FORMAT_EXT = { ips: ".ips", ups: ".ups", bps: ".bps", xdelta: ".xdelta" };
+const PATCH_EXTS = [".ips", ".ips32", ".ups", ".bps", ".aps", ".ppf", ".xdelta", ".vcdiff", ".dps", ".ebp"];
 function defaultPatchName(name, format) {
-  const dot = name.lastIndexOf(".");
-  const base = dot > 0 ? name.slice(0, dot) : name;
-  const ext = { ips: ".ips", ups: ".ups", bps: ".bps", xdelta: ".xdelta" }[format] || ".bps";
-  return base + ext;
+  const [base] = splitExt(name);
+  return base + (PATCH_FORMAT_EXT[format] || ".bps");
+}
+// 適用結果の拡張子は必ず元のロムの拡張子にそろえる。
+// 出力名欄にパッチ形式の拡張子 (.bps 等) が入っていても、保存時に
+// ロムの形式で保存されるようにするための最終ガード。
+function enforceRomExt(outName, romName) {
+  const [, romExt] = splitExt(romName);
+  const [base, outExt] = splitExt(outName);
+  if (romExt) {
+    return outExt.toLowerCase() === romExt.toLowerCase() ? outName : base + romExt;
+  }
+  // ロムに拡張子が無い場合は、パッチ形式の拡張子だけを取り除く
+  return PATCH_EXTS.includes(outExt.toLowerCase()) ? base : outName;
+}
+// 作成するパッチの拡張子は、選択中の形式にそろえる (最終ガード)。
+function enforcePatchExt(outName, format) {
+  const want = PATCH_FORMAT_EXT[format] || ".bps";
+  const [base, outExt] = splitExt(outName);
+  return outExt.toLowerCase() === want ? outName : base + want;
+}
+// 出力名欄が手入力されたかどうか (自動入力の上書き可否の判定に使う)
+let applyOutManual = false;
+let createOutManual = false;
+function initOutNames() {
+  document.getElementById("apply-outname").addEventListener("input", () => { applyOutManual = true; });
+  document.getElementById("create-outname").addEventListener("input", () => { createOutManual = true; });
 }
 
 // ファイル欄: クリックで開く + ドラッグ&ドロップ
@@ -669,7 +705,9 @@ async function doApply(force) {
   const patch = state.files["apply-patch"];
   if (!rom) { showDialog(t("dlgError"), t("errRom")); return; }
   if (!patch) { showDialog(t("dlgError"), t("errPatch")); return; }
-  const outName = document.getElementById("apply-outname").value.trim() || defaultOutName(rom.name);
+  const outField = document.getElementById("apply-outname");
+  const outName = enforceRomExt(outField.value.trim() || defaultOutName(rom.name), rom.name);
+  outField.value = outName; // そろえた名前を欄にも反映する
   const btn = document.getElementById("apply-btn");
   btn.disabled = true;
   btn.textContent = t("working");
@@ -716,7 +754,9 @@ async function doCreate() {
   if (!orig) { showDialog(t("dlgError"), t("errOrig")); return; }
   if (!mod) { showDialog(t("dlgError"), t("errMod")); return; }
   const format = document.getElementById("create-format").value;
-  const outName = document.getElementById("create-outname").value.trim() || defaultPatchName(mod.name, format);
+  const outField = document.getElementById("create-outname");
+  const outName = enforcePatchExt(outField.value.trim() || defaultPatchName(mod.name, format), format);
+  outField.value = outName; // そろえた名前を欄にも反映する
   const btn = document.getElementById("create-btn");
   btn.disabled = true;
   btn.textContent = t("working");
@@ -788,11 +828,12 @@ function initSettings() {
   document.getElementById("create-format").addEventListener("change", (e) => {
     const mod = state.files["create-mod"];
     const out = document.getElementById("create-outname");
-    if (mod && !out.value) out.value = defaultPatchName(mod.name, e.target.value);
+    if (mod && !createOutManual) out.value = defaultPatchName(mod.name, e.target.value);
   });
 }
 
 initFileFields();
+initOutNames();
 initSettings();
 applyLang();
 showPage("apply");
