@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniPatcher</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Yu Gothic UI", sans-serif; margin: 0; background: #eef1f4; color: #222; }
+  header { background: #2b579a; color: #fff; padding: 10px 16px; font-size: 18px; font-weight: 600; }
+  header .build { font-size: 11px; font-weight: 400; opacity: .75; margin-left: 8px; }
+  nav#tabs { display: flex; gap: 4px; padding: 8px 12px 0; }
+  nav#tabs button { flex: 1; padding: 9px 4px; font-size: 14px; border: 1px solid #b9c2cc; border-bottom: none; background: #d7dde4; border-radius: 6px 6px 0 0; cursor: pointer; }
+  nav#tabs button.active { background: #fff; font-weight: 600; }
+  .page { background: #fff; margin: 0 12px 12px; padding: 14px 16px 18px; border: 1px solid #b9c2cc; border-radius: 0 0 6px 6px; }
+  .desc { white-space: pre-line; font-size: 13px; color: #444; background: #f4f7fa; border: 1px solid #dde4ea; border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; line-height: 1.55; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .filefield { display: flex; align-items: center; gap: 8px; border: 1.5px dashed #9db1c4; border-radius: 6px; padding: 8px; background: #fbfdfe; cursor: pointer; }
+  .filefield.drag { border-color: #2b579a; background: #e3ecf7; }
+  .filefield .fname { font-size: 13px; word-break: break-all; }
+  .filefield .hint { font-size: 11px; color: #77828d; }
+  .openbtn { background: #2b579a; color: #fff; border: none; border-radius: 4px; padding: 6px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .meta { font-size: 12.5px; color: #333; margin-top: 4px; font-family: Consolas, monospace; white-space: pre-line; }
+  .meta .ok { color: #1a7d1a; font-weight: 700; }
+  .meta .ng { color: #c00; font-weight: 700; }
+  input[type="text"], select { width: 100%; padding: 7px 8px; font-size: 14px; border: 1px solid #b9c2cc; border-radius: 4px; }
+  .bigbtn { width: 100%; padding: 12px; font-size: 16px; font-weight: 600; background: #2b579a; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-top: 4px; }
+  .bigbtn:disabled { background: #9db1c4; }
+  .setrow { margin-bottom: 16px; font-size: 14px; }
+  .setrow label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 13px; }
+  .setrow .opt { display: block; font-weight: 400; margin: 3px 0; }
+  #dialog { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 50; }
+  #dialog-card { background: #fff; border-radius: 8px; padding: 18px; width: min(92vw, 460px); box-shadow: 0 6px 30px rgba(0,0,0,.3); }
+  #dialog-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  #dialog-msg { font-size: 13.5px; white-space: pre-line; line-height: 1.55; margin-bottom: 14px; word-break: break-all; }
+  #dialog-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  #dialog-btns button { padding: 8px 18px; font-size: 14px; border-radius: 5px; border: 1px solid #b9c2cc; background: #f0f3f6; cursor: pointer; }
+  #dialog-btns button.primary { background: #2b579a; color: #fff; border-color: #2b579a; }
+</style>
+</head>
+<body>
+<header><span data-i18n="appTitle"></span><span class="build">build __BUILD__</span></header>
+<nav id="tabs">
+  <button type="button" class="tab active" id="tabbtn-apply" onclick="showPage('apply')" data-i18n="tabApply"></button>
+  <button type="button" class="tab" id="tabbtn-create" onclick="showPage('create')" data-i18n="tabCreate"></button>
+  <button type="button" class="tab" id="tabbtn-settings" onclick="showPage('settings')" data-i18n="tabSettings"></button>
+</nav>
+
+<div class="page" id="page-apply">
+  <p class="desc" data-i18n="descApply"></p>
+  <p class="desc" data-i18n="formatsApply"></p>
+  <p class="desc" data-i18n="crcInfo"></p>
+  <div class="field">
+    <label data-i18n="romFile"></label>
+    <div class="filefield" id="ff-apply-rom">
+      <input type="file" id="fi-apply-rom" hidden>
+      <button type="button" class="openbtn" data-i18n="openBtn"></button>
+      <span class="fname" id="fn-apply-rom"></span>
+      <span class="hint" data-i18n="dropHint"></span>
+    </div>
+    <div class="meta" id="meta-apply-rom"></div>
+  </div>
+  <div class="field">
+    <label data-i18n="patchFile"></label>
+    <div class="filefield" id="ff-apply-patch">
+      <input type="file" id="fi-apply-patch" hidden>
+      <button type="button" class="openbtn" data-i18n="openBtn"></button>
+      <span class="fname" id="fn-apply-patch"></span>
+      <span class="hint" data-i18n="dropHint"></span>
+    </div>
+    <div class="meta" id="meta-apply-patch"></div>
+  </div>
+  <div class="field">
+    <label data-i18n="outputName"></label>
+    <input type="text" id="apply-outname">
+  </div>
+  <button type="button" class="bigbtn" id="apply-btn" onclick="doApply(false)" data-i18n="applyBtn"></button>
+</div>
+
+<div class="page" id="page-create" style="display:none">
+  <p class="desc" data-i18n="descCreate"></p>
+  <p class="desc" data-i18n="formatsCreate"></p>
+  <div class="field">
+    <label data-i18n="origFile"></label>
+    <div class="filefield" id="ff-create-orig">
+      <input type="file" id="fi-create-orig" hidden>
+      <button type="button" class="openbtn" data-i18n="openBtn"></button>
+      <span class="fname" id="fn-create-orig"></span>
+      <span class="hint" data-i18n="dropHint"></span>
+    </div>
+    <div class="meta" id="meta-create-orig"></div>
+  </div>
+  <div class="field">
+    <label data-i18n="modFile"></label>
+    <div class="filefield" id="ff-create-mod">
+      <input type="file" id="fi-create-mod" hidden>
+      <button type="button" class="openbtn" data-i18n="openBtn"></button>
+      <span class="fname" id="fn-create-mod"></span>
+      <span class="hint" data-i18n="dropHint"></span>
+    </div>
+    <div class="meta" id="meta-create-mod"></div>
+  </div>
+  <div class="field">
+    <label data-i18n="formatLabel"></label>
+    <select id="create-format">
+      <option value="bps">BPS</option>
+      <option value="ips">IPS</option>
+      <option value="ups">UPS</option>
+      <option value="xdelta">xdelta (VCDIFF)</option>
+    </select>
+  </div>
+  <div class="field">
+    <label data-i18n="patchNameLabel"></label>
+    <input type="text" id="create-outname">
+  </div>
+  <button type="button" class="bigbtn" id="create-btn" onclick="doCreate()" data-i18n="createBtn"></button>
+</div>
+
+<div class="page" id="page-settings" style="display:none">
+  <p class="desc" data-i18n="descSettings"></p>
+  <div class="setrow">
+    <label data-i18n="langLabel"></label>
+    <select id="set-lang">
+      <option value="auto" data-i18n="langAuto"></option>
+      <option value="ja">日本語</option>
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="it">Italiano</option>
+      <option value="es">Español</option>
+      <option value="ru">Русский</option>
+      <option value="pt">Português</option>
+      <option value="pl">Polski</option>
+      <option value="ko">한국어</option>
+      <option value="zh-Hans">简体中文</option>
+      <option value="zh-Hant">繁體中文</option>
+    </select>
+  </div>
+  <div class="setrow">
+    <label data-i18n="crcModeLabel"></label>
+    <label class="opt"><input type="radio" name="crcmode" value="warn"> <span data-i18n="crcWarn"></span></label>
+    <label class="opt"><input type="radio" name="crcmode" value="block"> <span data-i18n="crcBlock"></span></label>
+    <label class="opt"><input type="radio" name="crcmode" value="ignore"> <span data-i18n="crcIgnore"></span></label>
+  </div>
+  <div class="setrow">
+    <label class="opt"><input type="checkbox" id="set-md5"> <span data-i18n="showMD5Label"></span></label>
+    <label class="opt"><input type="checkbox" id="set-sha1"> <span data-i18n="showSHA1Label"></span></label>
+  </div>
+  <p class="desc" data-i18n="settingsNote"></p>
+</div>
+
+<div id="dialog">
+  <div id="dialog-card">
+    <div id="dialog-title"></div>
+    <div id="dialog-msg"></div>
+    <div id="dialog-btns"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const I18N = {
+ja: {
+  appTitle: "UniPatcher (万能ロムパッチャー)",
+  tabApply: "パッチを当てる", tabCreate: "パッチを作成", tabSettings: "設定",
+  descApply: "このページでは、パッチファイルを元のロムに当てて、パッチ適用済みのロムを作ります。\nロムとパッチを選んで「パッチを当てる」を押すだけです。\n元のロムファイルは変更されず、結果は新しいファイルとしてダウンロードされます。",
+  formatsApply: "当てることができる形式は IPS、IPS32、UPS、BPS、APS (GBA)、PPF、xdelta (VCDIFF) です。\n形式はファイルの中身から自動で判定するので、拡張子が違っていてもかまいません。",
+  crcInfo: "CRC32 は、ファイルの内容を表す短いチェック値です。\nUPS と BPS のパッチには、元のロムの CRC32 が記録されています。\nパッチを選ぶと、その CRC がパッチ欄の横に表示されます。\nロムを選ぶと、そのロムの CRC がロム欄の横に表示されます。\n両方の CRC が一致すれば、そのパッチが想定しているロムだと分かります。\nIPS など CRC が記録されていない形式では、照合はできません。",
+  descCreate: "このページでは、元のロムと改造済みロムを比べて、差分のパッチファイルを作ります。\n作ったパッチは、元のロムを持っている人に配布できます。\nロムそのものではなく差分だけを配るので、ファイルサイズを小さくできます。",
+  formatsCreate: "作成できる形式は IPS、UPS、BPS、xdelta (VCDIFF) です。\n迷った場合は、CRC でロムを照合できる BPS がおすすめです。",
+  descSettings: "このページでは、表示言語や CRC チェックの動きなどを変更できます。\n設定はこの端末に自動で保存され、次回起動時にも使われます。",
+  romFile: "ロムファイル", patchFile: "パッチファイル", outputName: "出力ファイル名", applyBtn: "パッチを当てる",
+  origFile: "元のロム", modFile: "改造済みロム", formatLabel: "パッチ形式", patchNameLabel: "パッチファイル名", createBtn: "パッチを作成",
+  openBtn: "開く", noFile: "ファイルが選ばれていません", dropHint: "ここにドラッグ&ドロップできます", tapHint: "タップしてファイルを開けます",
+  crcLabel: "CRC32", sizeLabel: "サイズ", expectedCRCLabel: "パッチ指定の元ロム CRC32", targetCRCLabel: "適用後の CRC32",
+  formatDetectedLabel: "形式", noCRCText: "このパッチには CRC が記録されていません",
+  matchOK: "✓ CRC が一致しています", matchNG: "✗ CRC が一致しません",
+  langLabel: "言語", langAuto: "自動 (システム言語)", crcModeLabel: "CRC が一致しないとき",
+  crcWarn: "警告して、続けるか選べるようにする", crcBlock: "中止する", crcIgnore: "チェックしない",
+  showMD5Label: "MD5 も表示する", showSHA1Label: "SHA-1 も表示する", settingsNote: "設定は自動で保存されます。",
+  dlgSuccess: "完了", dlgError: "エラー", dlgConfirm: "確認", okBtn: "OK", cancelBtn: "キャンセル", continueBtn: "このまま続ける",
+  crcMismatchMsg: "パッチが想定しているロムの CRC と、選んだロムの CRC が一致しません。\n間違ったロムに当てると、壊れたファイルができることがあります。",
+  errRom: "ロムファイルを選んでください。", errPatch: "パッチファイルを選んでください。", errSave: "ファイルを保存できませんでした。",
+  errOrig: "元のロムを選んでください。", errMod: "改造済みロムを選んでください。",
+  working: "処理中です…", doneMsgApply: "パッチを当てました。", doneMsgCreate: "パッチを作成しました。"
+},
+en: {
+  appTitle: "UniPatcher",
+  tabApply: "Apply patch", tabCreate: "Create patch", tabSettings: "Settings",
+  descApply: "On this page, you apply a patch file to an original ROM and get a patched ROM.\nJust choose the ROM and the patch, then press \"Apply patch\".\nThe original ROM file is never changed, and the result is downloaded as a new file.",
+  formatsApply: "You can apply IPS, IPS32, UPS, BPS, APS (GBA), PPF and xdelta (VCDIFF) patches.\nThe format is detected from the file contents, so a wrong file extension is not a problem.",
+  crcInfo: "CRC32 is a short checksum that represents the contents of a file.\nUPS and BPS patches store the CRC32 of the original ROM they expect.\nWhen you choose a patch, that CRC is shown next to the patch field.\nWhen you choose a ROM, the ROM's CRC is shown next to the ROM field.\nIf both CRCs match, you know the patch was made for that ROM.\nFormats that store no CRC, such as IPS, cannot be checked this way.",
+  descCreate: "On this page, you compare an original ROM with a modified ROM and create a patch file of the differences.\nYou can give the patch to anyone who owns the original ROM.\nOnly the differences are shared, so the patch file stays small.",
+  formatsCreate: "You can create IPS, UPS, BPS and xdelta (VCDIFF) patches.\nIf you are unsure, BPS is recommended because it can verify the ROM by CRC.",
+  descSettings: "On this page, you can change the display language and how CRC checks behave.\nSettings are saved on this device automatically and are used again on the next start.",
+  romFile: "ROM file", patchFile: "Patch file", outputName: "Output file name", applyBtn: "Apply patch",
+  origFile: "Original ROM", modFile: "Modified ROM", formatLabel: "Patch format", patchNameLabel: "Patch file name", createBtn: "Create patch",
+  openBtn: "Open", noFile: "No file chosen", dropHint: "or drag & drop here", tapHint: "or tap to open a file",
+  crcLabel: "CRC32", sizeLabel: "Size", expectedCRCLabel: "Expected ROM CRC32 in patch", targetCRCLabel: "Result CRC32",
+  formatDetectedLabel: "Format", noCRCText: "This patch stores no CRC",
+  matchOK: "✓ CRC matches", matchNG: "✗ CRC does not match",
+  langLabel: "Language", langAuto: "Auto (system language)", crcModeLabel: "When the CRC does not match",
+  crcWarn: "Warn and let me choose whether to continue", crcBlock: "Stop", crcIgnore: "Do not check",
+  showMD5Label: "Also show MD5", showSHA1Label: "Also show SHA-1", settingsNote: "Settings are saved automatically.",
+  dlgSuccess: "Done", dlgError: "Error", dlgConfirm: "Confirm", okBtn: "OK", cancelBtn: "Cancel", continueBtn: "Continue anyway",
+  crcMismatchMsg: "The CRC of the ROM expected by the patch does not match the CRC of the ROM you chose.\nApplying a patch to the wrong ROM can produce a broken file.",
+  errRom: "Please choose a ROM file.", errPatch: "Please choose a patch file.", errSave: "Could not save the file.",
+  errOrig: "Please choose the original ROM.", errMod: "Please choose the modified ROM.",
+  working: "Working…", doneMsgApply: "The patch was applied.", doneMsgCreate: "The patch was created."
+},
+fr: {
+  appTitle: "UniPatcher",
+  tabApply: "Appliquer un patch", tabCreate: "Créer un patch", tabSettings: "Réglages",
+  descApply: "Sur cette page, vous appliquez un fichier de patch à une ROM d'origine pour obtenir une ROM patchée.\nChoisissez simplement la ROM et le patch, puis appuyez sur « Appliquer un patch ».\nLa ROM d'origine n'est jamais modifiée et le résultat est téléchargé comme un nouveau fichier.",
+  formatsApply: "Vous pouvez appliquer les patchs IPS, IPS32, UPS, BPS, APS (GBA), PPF et xdelta (VCDIFF).\nLe format est détecté d'après le contenu du fichier, donc une mauvaise extension ne pose pas de problème.",
+  crcInfo: "Le CRC32 est une courte somme de contrôle qui représente le contenu d'un fichier.\nLes patchs UPS et BPS contiennent le CRC32 de la ROM d'origine attendue.\nQuand vous choisissez un patch, ce CRC s'affiche à côté du champ du patch.\nQuand vous choisissez une ROM, le CRC de la ROM s'affiche à côté du champ de la ROM.\nSi les deux CRC correspondent, le patch a bien été fait pour cette ROM.\nLes formats sans CRC, comme IPS, ne peuvent pas être vérifiés ainsi.",
+  descCreate: "Sur cette page, vous comparez une ROM d'origine et une ROM modifiée pour créer un patch des différences.\nVous pouvez donner le patch à toute personne qui possède la ROM d'origine.\nSeules les différences sont partagées, donc le patch reste petit.",
+  formatsCreate: "Vous pouvez créer des patchs IPS, UPS, BPS et xdelta (VCDIFF).\nEn cas de doute, BPS est recommandé car il peut vérifier la ROM par CRC.",
+  descSettings: "Sur cette page, vous pouvez changer la langue d'affichage et le comportement des contrôles CRC.\nLes réglages sont enregistrés automatiquement sur cet appareil et réutilisés au prochain démarrage.",
+  romFile: "Fichier ROM", patchFile: "Fichier de patch", outputName: "Nom du fichier de sortie", applyBtn: "Appliquer un patch",
+  origFile: "ROM d'origine", modFile: "ROM modifiée", formatLabel: "Format de patch", patchNameLabel: "Nom du fichier de patch", createBtn: "Créer un patch",
+  openBtn: "Ouvrir", noFile: "Aucun fichier choisi", dropHint: "ou glisser-déposer ici", tapHint: "ou touchez pour ouvrir un fichier",
+  crcLabel: "CRC32", sizeLabel: "Taille", expectedCRCLabel: "CRC32 de la ROM attendu par le patch", targetCRCLabel: "CRC32 du résultat",
+  formatDetectedLabel: "Format", noCRCText: "Ce patch ne contient aucun CRC",
+  matchOK: "✓ Les CRC correspondent", matchNG: "✗ Les CRC ne correspondent pas",
+  langLabel: "Langue", langAuto: "Auto (langue du système)", crcModeLabel: "Quand le CRC ne correspond pas",
+  crcWarn: "Avertir et me laisser choisir de continuer", crcBlock: "Arrêter", crcIgnore: "Ne pas vérifier",
+  showMD5Label: "Afficher aussi le MD5", showSHA1Label: "Afficher aussi le SHA-1", settingsNote: "Les réglages sont enregistrés automatiquement.",
+  dlgSuccess: "Terminé", dlgError: "Erreur", dlgConfirm: "Confirmation", okBtn: "OK", cancelBtn: "Annuler", continueBtn: "Continuer quand même",
+  crcMismatchMsg: "Le CRC de la ROM attendue par le patch ne correspond pas au CRC de la ROM choisie.\nAppliquer un patch à la mauvaise ROM peut produire un fichier corrompu.",
+  errRom: "Veuillez choisir un fichier ROM.", errPatch: "Veuillez choisir un fichier de patch.", errSave: "Impossible d'enregistrer le fichier.",
+  errOrig: "Veuillez choisir la ROM d'origine.", errMod: "Veuillez choisir la ROM modifiée.",
+  working: "Traitement…", doneMsgApply: "Le patch a été appliqué.", doneMsgCreate: "Le patch a été créé."
+},
+de: {
+  appTitle: "UniPatcher",
+  tabApply: "Patch anwenden", tabCreate: "Patch erstellen", tabSettings: "Einstellungen",
+  descApply: "Auf dieser Seite wenden Sie eine Patch-Datei auf ein Original-ROM an und erhalten ein gepatchtes ROM.\nWählen Sie einfach ROM und Patch und drücken Sie „Patch anwenden“.\nDie Original-ROM wird nie verändert, und das Ergebnis wird als neue Datei heruntergeladen.",
+  formatsApply: "Sie können IPS-, IPS32-, UPS-, BPS-, APS- (GBA), PPF- und xdelta-Patches (VCDIFF) anwenden.\nDas Format wird am Dateiinhalt erkannt, eine falsche Dateiendung ist also kein Problem.",
+  crcInfo: "CRC32 ist eine kurze Prüfsumme, die den Inhalt einer Datei beschreibt.\nUPS- und BPS-Patches speichern die CRC32 des erwarteten Original-ROMs.\nWenn Sie einen Patch wählen, wird diese CRC neben dem Patch-Feld angezeigt.\nWenn Sie ein ROM wählen, wird dessen CRC neben dem ROM-Feld angezeigt.\nStimmen beide CRCs überein, wurde der Patch für dieses ROM erstellt.\nFormate ohne CRC, wie IPS, können so nicht geprüft werden.",
+  descCreate: "Auf dieser Seite vergleichen Sie ein Original-ROM mit einem veränderten ROM und erstellen daraus eine Patch-Datei.\nDen Patch können Sie an alle geben, die das Original-ROM besitzen.\nEs werden nur die Unterschiede weitergegeben, daher bleibt der Patch klein.",
+  formatsCreate: "Sie können IPS-, UPS-, BPS- und xdelta-Patches (VCDIFF) erstellen.\nIm Zweifel wird BPS empfohlen, weil es das ROM per CRC prüfen kann.",
+  descSettings: "Auf dieser Seite können Sie die Anzeigesprache und das Verhalten der CRC-Prüfung ändern.\nDie Einstellungen werden automatisch auf diesem Gerät gespeichert und beim nächsten Start wieder verwendet.",
+  romFile: "ROM-Datei", patchFile: "Patch-Datei", outputName: "Name der Ausgabedatei", applyBtn: "Patch anwenden",
+  origFile: "Original-ROM", modFile: "Verändertes ROM", formatLabel: "Patch-Format", patchNameLabel: "Name der Patch-Datei", createBtn: "Patch erstellen",
+  openBtn: "Öffnen", noFile: "Keine Datei gewählt", dropHint: "oder hierher ziehen", tapHint: "oder tippen, um eine Datei zu öffnen",
+  crcLabel: "CRC32", sizeLabel: "Größe", expectedCRCLabel: "Im Patch erwartete ROM-CRC32", targetCRCLabel: "CRC32 des Ergebnisses",
+  formatDetectedLabel: "Format", noCRCText: "Dieser Patch enthält keine CRC",
+  matchOK: "✓ CRC stimmt überein", matchNG: "✗ CRC stimmt nicht überein",
+  langLabel: "Sprache", langAuto: "Automatisch (Systemsprache)", crcModeLabel: "Wenn die CRC nicht übereinstimmt",
+  crcWarn: "Warnen und mich weiter entscheiden lassen", crcBlock: "Abbrechen", crcIgnore: "Nicht prüfen",
+  showMD5Label: "Auch MD5 anzeigen", showSHA1Label: "Auch SHA-1 anzeigen", settingsNote: "Die Einstellungen werden automatisch gespeichert.",
+  dlgSuccess: "Fertig", dlgError: "Fehler", dlgConfirm: "Bestätigung", okBtn: "OK", cancelBtn: "Abbrechen", continueBtn: "Trotzdem fortfahren",
+  crcMismatchMsg: "Die vom Patch erwartete ROM-CRC stimmt nicht mit der CRC des gewählten ROMs überein.\nEinen Patch auf das falsche ROM anzuwenden, kann eine defekte Datei erzeugen.",
+  errRom: "Bitte wählen Sie eine ROM-Datei.", errPatch: "Bitte wählen Sie eine Patch-Datei.", errSave: "Die Datei konnte nicht gespeichert werden.",
+  errOrig: "Bitte wählen Sie das Original-ROM.", errMod: "Bitte wählen Sie das veränderte ROM.",
+  working: "Arbeite…", doneMsgApply: "Der Patch wurde angewendet.", doneMsgCreate: "Der Patch wurde erstellt."
+},
+it: {
+  appTitle: "UniPatcher",
+  tabApply: "Applica patch", tabCreate: "Crea patch", tabSettings: "Impostazioni",
+  descApply: "In questa pagina applichi un file patch a una ROM originale e ottieni una ROM con patch.\nScegli la ROM e la patch, poi premi «Applica patch».\nLa ROM originale non viene mai modificata e il risultato viene scaricato come nuovo file.",
+  formatsApply: "Puoi applicare patch IPS, IPS32, UPS, BPS, APS (GBA), PPF e xdelta (VCDIFF).\nIl formato viene riconosciuto dal contenuto del file, quindi un'estensione sbagliata non è un problema.",
+  crcInfo: "Il CRC32 è una breve somma di controllo che rappresenta il contenuto di un file.\nLe patch UPS e BPS contengono il CRC32 della ROM originale attesa.\nQuando scegli una patch, quel CRC viene mostrato accanto al campo della patch.\nQuando scegli una ROM, il CRC della ROM viene mostrato accanto al campo della ROM.\nSe i due CRC coincidono, la patch è stata creata per quella ROM.\nI formati senza CRC, come IPS, non possono essere verificati in questo modo.",
+  descCreate: "In questa pagina confronti una ROM originale con una ROM modificata e crei un file patch con le differenze.\nPuoi dare la patch a chiunque possieda la ROM originale.\nVengono condivise solo le differenze, quindi la patch resta piccola.",
+  formatsCreate: "Puoi creare patch IPS, UPS, BPS e xdelta (VCDIFF).\nIn caso di dubbio, si consiglia BPS perché può verificare la ROM tramite CRC.",
+  descSettings: "In questa pagina puoi cambiare la lingua di visualizzazione e il comportamento dei controlli CRC.\nLe impostazioni vengono salvate automaticamente su questo dispositivo e riutilizzate al prossimo avvio.",
+  romFile: "File ROM", patchFile: "File patch", outputName: "Nome del file di output", applyBtn: "Applica patch",
+  origFile: "ROM originale", modFile: "ROM modificata", formatLabel: "Formato patch", patchNameLabel: "Nome del file patch", createBtn: "Crea patch",
+  openBtn: "Apri", noFile: "Nessun file scelto", dropHint: "oppure trascina qui", tapHint: "oppure tocca per aprire un file",
+  crcLabel: "CRC32", sizeLabel: "Dimensione", expectedCRCLabel: "CRC32 della ROM atteso dalla patch", targetCRCLabel: "CRC32 del risultato",
+  formatDetectedLabel: "Formato", noCRCText: "Questa patch non contiene alcun CRC",
+  matchOK: "✓ I CRC coincidono", matchNG: "✗ I CRC non coincidono",
+  langLabel: "Lingua", langAuto: "Automatica (lingua di sistema)", crcModeLabel: "Quando il CRC non coincide",
+  crcWarn: "Avvisa e lasciami scegliere se continuare", crcBlock: "Interrompi", crcIgnore: "Non controllare",
+  showMD5Label: "Mostra anche MD5", showSHA1Label: "Mostra anche SHA-1", settingsNote: "Le impostazioni vengono salvate automaticamente.",
+  dlgSuccess: "Fatto", dlgError: "Errore", dlgConfirm: "Conferma", okBtn: "OK", cancelBtn: "Annulla", continueBtn: "Continua comunque",
+  crcMismatchMsg: "Il CRC della ROM attesa dalla patch non coincide con il CRC della ROM scelta.\nApplicare una patch alla ROM sbagliata può produrre un file danneggiato.",
+  errRom: "Scegli un file ROM.", errPatch: "Scegli un file patch.", errSave: "Impossibile salvare il file.",
+  errOrig: "Scegli la ROM originale.", errMod: "Scegli la ROM modificata.",
+  working: "Elaborazione…", doneMsgApply: "La patch è stata applicata.", doneMsgCreate: "La patch è stata creata."
+},
+es: {
+  appTitle: "UniPatcher",
+  tabApply: "Aplicar parche", tabCreate: "Crear parche", tabSettings: "Ajustes",
+  descApply: "En esta página aplicas un archivo de parche a una ROM original y obtienes una ROM parcheada.\nSolo elige la ROM y el parche y pulsa «Aplicar parche».\nLa ROM original nunca se modifica y el resultado se descarga como un archivo nuevo.",
+  formatsApply: "Puedes aplicar parches IPS, IPS32, UPS, BPS, APS (GBA), PPF y xdelta (VCDIFF).\nEl formato se detecta por el contenido del archivo, así que una extensión incorrecta no es un problema.",
+  crcInfo: "CRC32 es una suma de comprobación corta que representa el contenido de un archivo.\nLos parches UPS y BPS guardan el CRC32 de la ROM original que esperan.\nCuando eliges un parche, ese CRC se muestra junto al campo del parche.\nCuando eliges una ROM, el CRC de la ROM se muestra junto al campo de la ROM.\nSi ambos CRC coinciden, el parche fue creado para esa ROM.\nLos formatos sin CRC, como IPS, no se pueden comprobar así.",
+  descCreate: "En esta página comparas una ROM original con una ROM modificada y creas un parche con las diferencias.\nPuedes dar el parche a quien tenga la ROM original.\nSolo se comparten las diferencias, así que el parche se mantiene pequeño.",
+  formatsCreate: "Puedes crear parches IPS, UPS, BPS y xdelta (VCDIFF).\nSi no estás seguro, se recomienda BPS porque puede verificar la ROM por CRC.",
+  descSettings: "En esta página puedes cambiar el idioma de visualización y el comportamiento de las comprobaciones CRC.\nLos ajustes se guardan automáticamente en este dispositivo y se usan en el próximo inicio.",
+  romFile: "Archivo ROM", patchFile: "Archivo de parche", outputName: "Nombre del archivo de salida", applyBtn: "Aplicar parche",
+  origFile: "ROM original", modFile: "ROM modificada", formatLabel: "Formato de parche", patchNameLabel: "Nombre del archivo de parche", createBtn: "Crear parche",
+  openBtn: "Abrir", noFile: "Ningún archivo elegido", dropHint: "o arrastra y suelta aquí", tapHint: "o toca para abrir un archivo",
+  crcLabel: "CRC32", sizeLabel: "Tamaño", expectedCRCLabel: "CRC32 de la ROM esperado por el parche", targetCRCLabel: "CRC32 del resultado",
+  formatDetectedLabel: "Formato", noCRCText: "Este parche no guarda ningún CRC",
+  matchOK: "✓ El CRC coincide", matchNG: "✗ El CRC no coincide",
+  langLabel: "Idioma", langAuto: "Automático (idioma del sistema)", crcModeLabel: "Cuando el CRC no coincide",
+  crcWarn: "Avisar y dejarme elegir si continuar", crcBlock: "Detener", crcIgnore: "No comprobar",
+  showMD5Label: "Mostrar también MD5", showSHA1Label: "Mostrar también SHA-1", settingsNote: "Los ajustes se guardan automáticamente.",
+  dlgSuccess: "Hecho", dlgError: "Error", dlgConfirm: "Confirmar", okBtn: "OK", cancelBtn: "Cancelar", continueBtn: "Continuar de todos modos",
+  crcMismatchMsg: "El CRC de la ROM que espera el parche no coincide con el CRC de la ROM elegida.\nAplicar un parche a la ROM equivocada puede producir un archivo dañado.",
+  errRom: "Elige un archivo ROM.", errPatch: "Elige un archivo de parche.", errSave: "No se pudo guardar el archivo.",
+  errOrig: "Elige la ROM original.", errMod: "Elige la ROM modificada.",
+  working: "Procesando…", doneMsgApply: "El parche se aplicó.", doneMsgCreate: "El parche se creó."
+},
+ru: {
+  appTitle: "UniPatcher",
+  tabApply: "Применить патч", tabCreate: "Создать патч", tabSettings: "Настройки",
+  descApply: "На этой странице вы применяете файл патча к исходному РОМу и получаете пропатченный РОМ.\nПросто выберите РОМ и патч и нажмите «Применить патч».\nИсходный РОМ никогда не изменяется, а результат скачивается как новый файл.",
+  formatsApply: "Можно применять патчи IPS, IPS32, UPS, BPS, APS (GBA), PPF и xdelta (VCDIFF).\nФормат определяется по содержимому файла, поэтому неверное расширение не помешает.",
+  crcInfo: "CRC32 — это короткая контрольная сумма, описывающая содержимое файла.\nПатчи UPS и BPS хранят CRC32 исходного РОМа, для которого они созданы.\nКогда вы выбираете патч, этот CRC показывается рядом с полем патча.\nКогда вы выбираете РОМ, его CRC показывается рядом с полем РОМа.\nЕсли оба CRC совпадают, патч создан именно для этого РОМа.\nФорматы без CRC, например IPS, так проверить нельзя.",
+  descCreate: "На этой странице вы сравниваете исходный РОМ с изменённым и создаёте патч из различий.\nПатч можно передать любому, у кого есть исходный РОМ.\nПередаются только различия, поэтому файл патча остаётся маленьким.",
+  formatsCreate: "Можно создавать патчи IPS, UPS, BPS и xdelta (VCDIFF).\nЕсли сомневаетесь, рекомендуется BPS, потому что он проверяет РОМ по CRC.",
+  descSettings: "На этой странице можно изменить язык интерфейса и поведение проверки CRC.\nНастройки автоматически сохраняются на этом устройстве и используются при следующем запуске.",
+  romFile: "Файл РОМа", patchFile: "Файл патча", outputName: "Имя выходного файла", applyBtn: "Применить патч",
+  origFile: "Исходный РОМ", modFile: "Изменённый РОМ", formatLabel: "Формат патча", patchNameLabel: "Имя файла патча", createBtn: "Создать патч",
+  openBtn: "Открыть", noFile: "Файл не выбран", dropHint: "или перетащите сюда", tapHint: "или коснитесь, чтобы открыть файл",
+  crcLabel: "CRC32", sizeLabel: "Размер", expectedCRCLabel: "Ожидаемый CRC32 РОМа в патче", targetCRCLabel: "CRC32 результата",
+  formatDetectedLabel: "Формат", noCRCText: "В этом патче нет CRC",
+  matchOK: "✓ CRC совпадает", matchNG: "✗ CRC не совпадает",
+  langLabel: "Язык", langAuto: "Авто (язык системы)", crcModeLabel: "Если CRC не совпадает",
+  crcWarn: "Предупредить и дать выбрать, продолжать ли", crcBlock: "Остановить", crcIgnore: "Не проверять",
+  showMD5Label: "Показывать также MD5", showSHA1Label: "Показывать также SHA-1", settingsNote: "Настройки сохраняются автоматически.",
+  dlgSuccess: "Готово", dlgError: "Ошибка", dlgConfirm: "Подтверждение", okBtn: "OK", cancelBtn: "Отмена", continueBtn: "Всё равно продолжить",
+  crcMismatchMsg: "CRC РОМа, ожидаемый патчем, не совпадает с CRC выбранного РОМа.\nПрименение патча к неверному РОМу может дать повреждённый файл.",
+  errRom: "Выберите файл РОМа.", errPatch: "Выберите файл патча.", errSave: "Не удалось сохранить файл.",
+  errOrig: "Выберите исходный РОМ.", errMod: "Выберите изменённый РОМ.",
+  working: "Обработка…", doneMsgApply: "Патч применён.", doneMsgCreate: "Патч создан."
+},
+pt: {
+  appTitle: "UniPatcher",
+  tabApply: "Aplicar patch", tabCreate: "Criar patch", tabSettings: "Configurações",
+  descApply: "Nesta página, você aplica um arquivo de patch a uma ROM original e obtém uma ROM com patch.\nBasta escolher a ROM e o patch e pressionar «Aplicar patch».\nA ROM original nunca é alterada, e o resultado é baixado como um arquivo novo.",
+  formatsApply: "Você pode aplicar patches IPS, IPS32, UPS, BPS, APS (GBA), PPF e xdelta (VCDIFF).\nO formato é detectado pelo conteúdo do arquivo, portanto uma extensão errada não é problema.",
+  crcInfo: "CRC32 é uma soma de verificação curta que representa o conteúdo de um arquivo.\nOs patches UPS e BPS guardam o CRC32 da ROM original esperada.\nQuando você escolhe um patch, esse CRC é mostrado ao lado do campo do patch.\nQuando você escolhe uma ROM, o CRC da ROM é mostrado ao lado do campo da ROM.\nSe os dois CRCs coincidirem, o patch foi feito para essa ROM.\nFormatos sem CRC, como IPS, não podem ser verificados assim.",
+  descCreate: "Nesta página, você compara uma ROM original com uma ROM modificada e cria um patch com as diferenças.\nVocê pode dar o patch a quem tiver a ROM original.\nApenas as diferenças são compartilhadas, então o patch fica pequeno.",
+  formatsCreate: "Você pode criar patches IPS, UPS, BPS e xdelta (VCDIFF).\nSe estiver em dúvida, BPS é recomendado porque pode verificar a ROM por CRC.",
+  descSettings: "Nesta página, você pode mudar o idioma de exibição e o comportamento das verificações de CRC.\nAs configurações são salvas automaticamente neste dispositivo e usadas na próxima abertura.",
+  romFile: "Arquivo ROM", patchFile: "Arquivo de patch", outputName: "Nome do arquivo de saída", applyBtn: "Aplicar patch",
+  origFile: "ROM original", modFile: "ROM modificada", formatLabel: "Formato do patch", patchNameLabel: "Nome do arquivo de patch", createBtn: "Criar patch",
+  openBtn: "Abrir", noFile: "Nenhum arquivo escolhido", dropHint: "ou arraste e solte aqui", tapHint: "ou toque para abrir um arquivo",
+  crcLabel: "CRC32", sizeLabel: "Tamanho", expectedCRCLabel: "CRC32 da ROM esperado pelo patch", targetCRCLabel: "CRC32 do resultado",
+  formatDetectedLabel: "Formato", noCRCText: "Este patch não guarda nenhum CRC",
+  matchOK: "✓ O CRC coincide", matchNG: "✗ O CRC não coincide",
+  langLabel: "Idioma", langAuto: "Automático (idioma do sistema)", crcModeLabel: "Quando o CRC não coincide",
+  crcWarn: "Avisar e deixar-me escolher se continuo", crcBlock: "Parar", crcIgnore: "Não verificar",
+  showMD5Label: "Mostrar também MD5", showSHA1Label: "Mostrar também SHA-1", settingsNote: "As configurações são salvas automaticamente.",
+  dlgSuccess: "Concluído", dlgError: "Erro", dlgConfirm: "Confirmar", okBtn: "OK", cancelBtn: "Cancelar", continueBtn: "Continuar mesmo assim",
+  crcMismatchMsg: "O CRC da ROM esperado pelo patch não coincide com o CRC da ROM escolhida.\nAplicar um patch à ROM errada pode produzir um arquivo corrompido.",
+  errRom: "Escolha um arquivo ROM.", errPatch: "Escolha um arquivo de patch.", errSave: "Não foi possível salvar o arquivo.",
+  errOrig: "Escolha a ROM original.", errMod: "Escolha a ROM modificada.",
+  working: "Processando…", doneMsgApply: "O patch foi aplicado.", doneMsgCreate: "O patch foi criado."
+},
+pl: {
+  appTitle: "UniPatcher",
+  tabApply: "Zastosuj łatkę", tabCreate: "Utwórz łatkę", tabSettings: "Ustawienia",
+  descApply: "Na tej stronie nakładasz plik łatki na oryginalny ROM i otrzymujesz ROM z łatką.\nWystarczy wybrać ROM i łatkę, a potem nacisnąć „Zastosuj łatkę”.\nOryginalny ROM nigdy nie jest zmieniany, a wynik jest pobierany jako nowy plik.",
+  formatsApply: "Możesz stosować łatki IPS, IPS32, UPS, BPS, APS (GBA), PPF i xdelta (VCDIFF).\nFormat jest wykrywany na podstawie zawartości pliku, więc błędne rozszerzenie nie przeszkadza.",
+  crcInfo: "CRC32 to krótka suma kontrolna opisująca zawartość pliku.\nŁatki UPS i BPS przechowują CRC32 oczekiwanego oryginalnego ROM-u.\nGdy wybierzesz łatkę, jej CRC pokaże się obok pola łatki.\nGdy wybierzesz ROM, jego CRC pokaże się obok pola ROM-u.\nJeśli oba CRC się zgadzają, łatka została utworzona dla tego ROM-u.\nFormatów bez CRC, takich jak IPS, nie da się tak sprawdzić.",
+  descCreate: "Na tej stronie porównujesz oryginalny ROM ze zmodyfikowanym i tworzysz łatkę z różnic.\nŁatkę możesz dać każdemu, kto ma oryginalny ROM.\nUdostępniane są tylko różnice, więc łatka pozostaje mała.",
+  formatsCreate: "Możesz tworzyć łatki IPS, UPS, BPS i xdelta (VCDIFF).\nW razie wątpliwości polecany jest BPS, bo potrafi sprawdzić ROM po CRC.",
+  descSettings: "Na tej stronie możesz zmienić język interfejsu i zachowanie kontroli CRC.\nUstawienia zapisują się automatycznie na tym urządzeniu i będą użyte przy następnym uruchomieniu.",
+  romFile: "Plik ROM", patchFile: "Plik łatki", outputName: "Nazwa pliku wyjściowego", applyBtn: "Zastosuj łatkę",
+  origFile: "Oryginalny ROM", modFile: "Zmodyfikowany ROM", formatLabel: "Format łatki", patchNameLabel: "Nazwa pliku łatki", createBtn: "Utwórz łatkę",
+  openBtn: "Otwórz", noFile: "Nie wybrano pliku", dropHint: "lub przeciągnij i upuść tutaj", tapHint: "lub dotknij, aby otworzyć plik",
+  crcLabel: "CRC32", sizeLabel: "Rozmiar", expectedCRCLabel: "Oczekiwane CRC32 ROM-u w łatce", targetCRCLabel: "CRC32 wyniku",
+  formatDetectedLabel: "Format", noCRCText: "Ta łatka nie przechowuje CRC",
+  matchOK: "✓ CRC się zgadza", matchNG: "✗ CRC się nie zgadza",
+  langLabel: "Język", langAuto: "Automatyczny (język systemu)", crcModeLabel: "Gdy CRC się nie zgadza",
+  crcWarn: "Ostrzeż i pozwól mi zdecydować, czy kontynuować", crcBlock: "Zatrzymaj", crcIgnore: "Nie sprawdzaj",
+  showMD5Label: "Pokazuj też MD5", showSHA1Label: "Pokazuj też SHA-1", settingsNote: "Ustawienia zapisują się automatycznie.",
+  dlgSuccess: "Gotowe", dlgError: "Błąd", dlgConfirm: "Potwierdzenie", okBtn: "OK", cancelBtn: "Anuluj", continueBtn: "Kontynuuj mimo to",
+  crcMismatchMsg: "CRC ROM-u oczekiwanego przez łatkę nie zgadza się z CRC wybranego ROM-u.\nNałożenie łatki na zły ROM może dać uszkodzony plik.",
+  errRom: "Wybierz plik ROM.", errPatch: "Wybierz plik łatki.", errSave: "Nie udało się zapisać pliku.",
+  errOrig: "Wybierz oryginalny ROM.", errMod: "Wybierz zmodyfikowany ROM.",
+  working: "Przetwarzanie…", doneMsgApply: "Łatka została zastosowana.", doneMsgCreate: "Łatka została utworzona."
+},
+ko: {
+  appTitle: "UniPatcher",
+  tabApply: "패치 적용", tabCreate: "패치 만들기", tabSettings: "설정",
+  descApply: "이 페이지에서는 패치 파일을 원본 롬에 적용해 패치된 롬을 만듭니다.\n롬과 패치를 선택하고 «패치 적용»을 누르기만 하면 됩니다.\n원본 롬 파일은 변경되지 않으며, 결과는 새 파일로 다운로드됩니다.",
+  formatsApply: "IPS, IPS32, UPS, BPS, APS (GBA), PPF, xdelta (VCDIFF) 패치를 적용할 수 있습니다.\n형식은 파일 내용으로 자동 판별하므로 확장자가 달라도 괜찮습니다.",
+  crcInfo: "CRC32는 파일 내용을 나타내는 짧은 검사 값입니다.\nUPS와 BPS 패치에는 예상 원본 롬의 CRC32가 기록되어 있습니다.\n패치를 선택하면 그 CRC가 패치 칸 옆에 표시됩니다.\n롬을 선택하면 그 롬의 CRC가 롬 칸 옆에 표시됩니다.\n두 CRC가 일치하면 그 패치가 해당 롬용이라는 뜻입니다.\nIPS처럼 CRC가 기록되지 않은 형식은 이렇게 확인할 수 없습니다.",
+  descCreate: "이 페이지에서는 원본 롬과 수정된 롬을 비교해 차이점만으로 패치 파일을 만듭니다.\n만든 패치는 원본 롬을 가진 사람에게 줄 수 있습니다.\n차이점만 공유하므로 패치 파일이 작게 유지됩니다.",
+  formatsCreate: "IPS, UPS, BPS, xdelta (VCDIFF) 패치를 만들 수 있습니다.\n고민된다면 CRC로 롬을 확인할 수 있는 BPS를 추천합니다.",
+  descSettings: "이 페이지에서는 표시 언어와 CRC 검사 방식을 바꿀 수 있습니다.\n설정은 이 기기에 자동 저장되며 다음 실행 때도 사용됩니다.",
+  romFile: "롬 파일", patchFile: "패치 파일", outputName: "출력 파일 이름", applyBtn: "패치 적용",
+  origFile: "원본 롬", modFile: "수정된 롬", formatLabel: "패치 형식", patchNameLabel: "패치 파일 이름", createBtn: "패치 만들기",
+  openBtn: "열기", noFile: "선택된 파일 없음", dropHint: "또는 여기로 드래그 앤 드롭", tapHint: "또는 탭해서 파일 열기",
+  crcLabel: "CRC32", sizeLabel: "크기", expectedCRCLabel: "패치가 예상하는 롬 CRC32", targetCRCLabel: "결과 CRC32",
+  formatDetectedLabel: "형식", noCRCText: "이 패치에는 CRC가 기록되어 있지 않습니다",
+  matchOK: "✓ CRC가 일치합니다", matchNG: "✗ CRC가 일치하지 않습니다",
+  langLabel: "언어", langAuto: "자동 (시스템 언어)", crcModeLabel: "CRC가 일치하지 않을 때",
+  crcWarn: "경고하고 계속할지 선택하게 하기", crcBlock: "중단하기", crcIgnore: "검사하지 않기",
+  showMD5Label: "MD5도 표시", showSHA1Label: "SHA-1도 표시", settingsNote: "설정은 자동 저장됩니다.",
+  dlgSuccess: "완료", dlgError: "오류", dlgConfirm: "확인", okBtn: "OK", cancelBtn: "취소", continueBtn: "그래도 계속",
+  crcMismatchMsg: "패치가 예상하는 롬의 CRC와 선택한 롬의 CRC가 일치하지 않습니다.\n잘못된 롬에 패치를 적용하면 파일이 깨질 수 있습니다.",
+  errRom: "롬 파일을 선택하세요.", errPatch: "패치 파일을 선택하세요.", errSave: "파일을 저장할 수 없습니다.",
+  errOrig: "원본 롬을 선택하세요.", errMod: "수정된 롬을 선택하세요.",
+  working: "처리 중…", doneMsgApply: "패치를 적용했습니다.", doneMsgCreate: "패치를 만들었습니다."
+},
+"zh-Hans": {
+  appTitle: "UniPatcher",
+  tabApply: "应用补丁", tabCreate: "创建补丁", tabSettings: "设置",
+  descApply: "在本页中，您可以将补丁文件应用到原始 ROM 上，得到打好补丁的 ROM。\n只需选择 ROM 和补丁，然后点击“应用补丁”。\n原始 ROM 文件不会被修改，结果会作为新文件下载。",
+  formatsApply: "可以应用 IPS、IPS32、UPS、BPS、APS (GBA)、PPF 和 xdelta (VCDIFF) 补丁。\n格式会根据文件内容自动识别，因此扩展名不对也没关系。",
+  crcInfo: "CRC32 是表示文件内容的简短校验值。\nUPS 和 BPS 补丁中记录了其预期原始 ROM 的 CRC32。\n选择补丁后，该 CRC 会显示在补丁栏旁边。\n选择 ROM 后，该 ROM 的 CRC 会显示在 ROM 栏旁边。\n如果两个 CRC 一致，说明该补丁正是为这个 ROM 制作的。\nIPS 等不记录 CRC 的格式无法这样核对。",
+  descCreate: "在本页中，您可以比较原始 ROM 和修改后的 ROM，创建只包含差异的补丁文件。\n您可以把补丁发给拥有原始 ROM 的人。\n只分享差异部分，因此补丁文件很小。",
+  formatsCreate: "可以创建 IPS、UPS、BPS 和 xdelta (VCDIFF) 补丁。\n如果拿不定主意，推荐 BPS，因为它可以用 CRC 核对 ROM。",
+  descSettings: "在本页中，您可以更改显示语言和 CRC 检查的方式。\n设置会自动保存在此设备上，下次启动时继续使用。",
+  romFile: "ROM 文件", patchFile: "补丁文件", outputName: "输出文件名", applyBtn: "应用补丁",
+  origFile: "原始 ROM", modFile: "修改后的 ROM", formatLabel: "补丁格式", patchNameLabel: "补丁文件名", createBtn: "创建补丁",
+  openBtn: "打开", noFile: "未选择文件", dropHint: "或拖放到这里", tapHint: "或点按打开文件",
+  crcLabel: "CRC32", sizeLabel: "大小", expectedCRCLabel: "补丁预期的 ROM CRC32", targetCRCLabel: "结果 CRC32",
+  formatDetectedLabel: "格式", noCRCText: "此补丁没有记录 CRC",
+  matchOK: "✓ CRC 一致", matchNG: "✗ CRC 不一致",
+  langLabel: "语言", langAuto: "自动（系统语言）", crcModeLabel: "当 CRC 不一致时",
+  crcWarn: "警告并让我选择是否继续", crcBlock: "停止", crcIgnore: "不检查",
+  showMD5Label: "同时显示 MD5", showSHA1Label: "同时显示 SHA-1", settingsNote: "设置会自动保存。",
+  dlgSuccess: "完成", dlgError: "错误", dlgConfirm: "确认", okBtn: "确定", cancelBtn: "取消", continueBtn: "仍然继续",
+  crcMismatchMsg: "补丁预期的 ROM CRC 与所选 ROM 的 CRC 不一致。\n将补丁应用到错误的 ROM 可能会生成损坏的文件。",
+  errRom: "请选择 ROM 文件。", errPatch: "请选择补丁文件。", errSave: "无法保存文件。",
+  errOrig: "请选择原始 ROM。", errMod: "请选择修改后的 ROM。",
+  working: "处理中…", doneMsgApply: "补丁已应用。", doneMsgCreate: "补丁已创建。"
+},
+"zh-Hant": {
+  appTitle: "UniPatcher",
+  tabApply: "套用修補檔", tabCreate: "建立修補檔", tabSettings: "設定",
+  descApply: "在本頁中，您可以將修補檔套用到原始 ROM 上，得到已修補的 ROM。\n只需選擇 ROM 和修補檔，然後按「套用修補檔」。\n原始 ROM 檔案不會被修改，結果會作為新檔案下載。",
+  formatsApply: "可以套用 IPS、IPS32、UPS、BPS、APS (GBA)、PPF 和 xdelta (VCDIFF) 修補檔。\n格式會依檔案內容自動辨識，因此副檔名不對也沒關係。",
+  crcInfo: "CRC32 是表示檔案內容的簡短檢查值。\nUPS 和 BPS 修補檔中記錄了其預期原始 ROM 的 CRC32。\n選擇修補檔後，該 CRC 會顯示在修補檔欄旁邊。\n選擇 ROM 後，該 ROM 的 CRC 會顯示在 ROM 欄旁邊。\n如果兩個 CRC 一致，表示該修補檔正是為這個 ROM 製作的。\nIPS 等不記錄 CRC 的格式無法這樣核對。",
+  descCreate: "在本頁中，您可以比較原始 ROM 和修改後的 ROM，建立只包含差異的修補檔。\n您可以把修補檔發給擁有原始 ROM 的人。\n只分享差異部分，因此修補檔很小。",
+  formatsCreate: "可以建立 IPS、UPS、BPS 和 xdelta (VCDIFF) 修補檔。\n如果拿不定主意，推薦 BPS，因為它可以用 CRC 核對 ROM。",
+  descSettings: "在本頁中，您可以更改顯示語言和 CRC 檢查的方式。\n設定會自動保存在此裝置上，下次啟動時繼續使用。",
+  romFile: "ROM 檔案", patchFile: "修補檔", outputName: "輸出檔名", applyBtn: "套用修補檔",
+  origFile: "原始 ROM", modFile: "修改後的 ROM", formatLabel: "修補格式", patchNameLabel: "修補檔名", createBtn: "建立修補檔",
+  openBtn: "開啟", noFile: "未選擇檔案", dropHint: "或拖放到這裡", tapHint: "或點按開啟檔案",
+  crcLabel: "CRC32", sizeLabel: "大小", expectedCRCLabel: "修補檔預期的 ROM CRC32", targetCRCLabel: "結果 CRC32",
+  formatDetectedLabel: "格式", noCRCText: "此修補檔沒有記錄 CRC",
+  matchOK: "✓ CRC 一致", matchNG: "✗ CRC 不一致",
+  langLabel: "語言", langAuto: "自動（系統語言）", crcModeLabel: "當 CRC 不一致時",
+  crcWarn: "警告並讓我選擇是否繼續", crcBlock: "停止", crcIgnore: "不檢查",
+  showMD5Label: "同時顯示 MD5", showSHA1Label: "同時顯示 SHA-1", settingsNote: "設定會自動保存。",
+  dlgSuccess: "完成", dlgError: "錯誤", dlgConfirm: "確認", okBtn: "確定", cancelBtn: "取消", continueBtn: "仍然繼續",
+  crcMismatchMsg: "修補檔預期的 ROM CRC 與所選 ROM 的 CRC 不一致。\n將修補檔套用到錯誤的 ROM 可能會產生損壞的檔案。",
+  errRom: "請選擇 ROM 檔案。", errPatch: "請選擇修補檔。", errSave: "無法儲存檔案。",
+  errOrig: "請選擇原始 ROM。", errMod: "請選擇修改後的 ROM。",
+  working: "處理中…", doneMsgApply: "修補檔已套用。", doneMsgCreate: "修補檔已建立。"
+}
+};
+
+// ---- 設定 ----
+const SETTINGS_KEY = "unipatcher_settings";
+let settings = { lang: "auto", crcMode: "warn", showMD5: false, showSHA1: false };
+try {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null");
+  if (saved) settings = Object.assign(settings, saved);
+} catch (e) {}
+function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+
+const LANGS = ["ja","en","fr","de","it","es","ru","pt","pl","ko","zh-Hans","zh-Hant"];
+function systemLang() {
+  const nav = (navigator.language || "en").toLowerCase();
+  if (nav.startsWith("zh")) {
+    return (nav.includes("tw") || nav.includes("hk") || nav.includes("hant")) ? "zh-Hant" : "zh-Hans";
+  }
+  const base = nav.split("-")[0];
+  return LANGS.includes(base) ? base : "en";
+}
+let LANG = settings.lang === "auto" ? systemLang() : (LANGS.includes(settings.lang) ? settings.lang : "en");
+function t(k) { return (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k; }
+
+// ---- 状態 ----
+const state = {
+  files: {},   // フィールド id -> File
+  hashes: {},  // フィールド id -> /api/hash の結果
+  patchInfo: null, // 適用ページのパッチ情報
+  romCRC: null     // 適用ページのロム CRC32 (文字列)
+};
+const FIELD_KIND = { "apply-rom": "rom", "apply-patch": "patch", "create-orig": "rom", "create-mod": "rom" };
+
+function showPage(name) {
+  for (const n of ["apply", "create", "settings"]) {
+    document.getElementById("page-" + n).style.display = n === name ? "" : "none";
+    document.getElementById("tabbtn-" + n).classList.toggle("active", n === name);
+  }
+}
+
+function fmtSize(n) { return n.toLocaleString("en-US") + " bytes"; }
+
+function renderRomMeta(id) {
+  const h = state.hashes[id];
+  const el = document.getElementById("meta-" + id);
+  if (!h) { el.textContent = ""; return; }
+  let s = t("crcLabel") + ": " + h.crc32 + "  ·  " + t("sizeLabel") + ": " + fmtSize(h.size);
+  if (settings.showMD5) s += "\nMD5: " + h.md5;
+  if (settings.showSHA1) s += "\nSHA-1: " + h.sha1;
+  el.textContent = s;
+}
+
+function renderPatchMeta() {
+  const el = document.getElementById("meta-apply-patch");
+  const info = state.patchInfo;
+  if (!info) { el.textContent = ""; return; }
+  let s = t("formatDetectedLabel") + ": " + info.formatName + "  ·  " + t("sizeLabel") + ": " + fmtSize(info.size);
+  if (info.hasSourceCRC) {
+    s += "\n" + t("expectedCRCLabel") + ": " + info.sourceCRC;
+    if (info.hasTargetCRC) s += "\n" + t("targetCRCLabel") + ": " + info.targetCRC;
+  } else {
+    s += "\n" + t("noCRCText");
+  }
+  el.textContent = s;
+  // 照合マークは専用 span で色付き表示する
+  let ind = document.getElementById("match-ind");
+  if (info.hasSourceCRC && state.romCRC) {
+    if (!ind) {
+      ind = document.createElement("span");
+      ind.id = "match-ind";
+      el.appendChild(document.createTextNode("\n"));
+      el.appendChild(ind);
+    }
+    const ok = info.sourceCRC === state.romCRC;
+    ind.textContent = ok ? t("matchOK") : t("matchNG");
+    ind.className = ok ? "ok" : "ng";
+  } else if (ind) {
+    ind.remove();
+  }
+}
+
+async function setFile(id, file) {
+  if (!file) return;
+  state.files[id] = file;
+  document.getElementById("fn-" + id).textContent = file.name;
+  const kind = FIELD_KIND[id];
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (kind === "patch") {
+      const res = await fetch("/api/patchinfo", { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok) { showDialog(t("dlgError"), j.error || "error"); state.patchInfo = null; }
+      else state.patchInfo = j;
+      renderPatchMeta();
+    } else {
+      const res = await fetch("/api/hash", { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok) { showDialog(t("dlgError"), j.error || "error"); return; }
+      state.hashes[id] = j;
+      if (id === "apply-rom") {
+        state.romCRC = j.crc32;
+        renderPatchMeta();
+        const out = document.getElementById("apply-outname");
+        if (!out.value) out.value = defaultOutName(file.name);
+      }
+      renderRomMeta(id);
+    }
+  } catch (e) {
+    // 通信できない環境 (jsdom 検証など) では名前表示だけ行う
+  }
+}
+
+function defaultOutName(name) {
+  const dot = name.lastIndexOf(".");
+  if (dot > 0) return name.slice(0, dot) + " (patched)" + name.slice(dot);
+  return name + " (patched)";
+}
+function defaultPatchName(name, format) {
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = { ips: ".ips", ups: ".ups", bps: ".bps", xdelta: ".xdelta" }[format] || ".bps";
+  return base + ext;
+}
+
+// ファイル欄: クリックで開く + ドラッグ&ドロップ
+function initFileFields() {
+  for (const id of Object.keys(FIELD_KIND)) {
+    const ff = document.getElementById("ff-" + id);
+    const fi = document.getElementById("fi-" + id);
+    document.getElementById("fn-" + id).textContent = t("noFile");
+    ff.addEventListener("click", () => fi.click());
+    fi.addEventListener("change", () => { if (fi.files && fi.files[0]) setFile(id, fi.files[0]); });
+    ff.addEventListener("dragover", (e) => { e.preventDefault(); ff.classList.add("drag"); });
+    ff.addEventListener("dragleave", () => ff.classList.remove("drag"));
+    ff.addEventListener("drop", (e) => {
+      e.preventDefault();
+      ff.classList.remove("drag");
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) setFile(id, e.dataTransfer.files[0]);
+    });
+  }
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => e.preventDefault());
+}
+
+// ---- ダイアログ ----
+let dialogConfirmCb = null;
+function showDialog(title, msg) {
+  document.getElementById("dialog-title").textContent = title;
+  document.getElementById("dialog-msg").textContent = msg;
+  const btns = document.getElementById("dialog-btns");
+  btns.innerHTML = "";
+  const ok = document.createElement("button");
+  ok.className = "primary";
+  ok.textContent = t("okBtn");
+  ok.addEventListener("click", hideDialog);
+  btns.appendChild(ok);
+  document.getElementById("dialog").style.display = "flex";
+}
+function showConfirmDialog(msg, onContinue) {
+  document.getElementById("dialog-title").textContent = t("dlgConfirm");
+  document.getElementById("dialog-msg").textContent = msg;
+  const btns = document.getElementById("dialog-btns");
+  btns.innerHTML = "";
+  const cancel = document.createElement("button");
+  cancel.textContent = t("cancelBtn");
+  cancel.addEventListener("click", hideDialog);
+  const cont = document.createElement("button");
+  cont.className = "primary";
+  cont.textContent = t("continueBtn");
+  cont.addEventListener("click", () => { hideDialog(); if (onContinue) onContinue(); });
+  btns.appendChild(cancel);
+  btns.appendChild(cont);
+  document.getElementById("dialog").style.display = "flex";
+}
+function hideDialog() { document.getElementById("dialog").style.display = "none"; }
+
+function downloadBlob(blob, name) {
+  // Android shell: blob downloads do nothing in a WebView, so hand the
+  // bytes to the named UniBridge, which saves into Downloads. Guarded:
+  // on Windows / desktop browsers the bridge does not exist and the
+  // normal anchor download below runs unchanged.
+  if (window.UniBridge && typeof window.UniBridge.beginSave === "function") {
+    return saveViaBridge(blob, name);
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return Promise.resolve(true);
+}
+
+async function saveViaBridge(blob, name) {
+  try {
+    if (!window.UniBridge.beginSave(name)) return false;
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    const CHUNK = 3 * 65536; // multiple of 3: clean base64 per chunk
+    for (let off = 0; off < buf.length; off += CHUNK) {
+      const part = buf.subarray(off, Math.min(off + CHUNK, buf.length));
+      let bin = "";
+      for (let i = 0; i < part.length; i += 32768) {
+        bin += String.fromCharCode.apply(null, part.subarray(i, i + 32768));
+      }
+      if (!window.UniBridge.appendSave(btoa(bin))) return false;
+    }
+    return !!window.UniBridge.finishSave();
+  } catch (e) {
+    return false;
+  }
+}
+
+// ---- 適用 ----
+async function doApply(force) {
+  const rom = state.files["apply-rom"];
+  const patch = state.files["apply-patch"];
+  if (!rom) { showDialog(t("dlgError"), t("errRom")); return; }
+  if (!patch) { showDialog(t("dlgError"), t("errPatch")); return; }
+  const outName = document.getElementById("apply-outname").value.trim() || defaultOutName(rom.name);
+  const btn = document.getElementById("apply-btn");
+  btn.disabled = true;
+  btn.textContent = t("working");
+  try {
+    const fd = new FormData();
+    fd.append("rom", rom);
+    fd.append("patch", patch);
+    fd.append("crcMode", settings.crcMode);
+    fd.append("force", force ? "1" : "0");
+    const res = await fetch("/api/apply", { method: "POST", body: fd });
+    if (res.status === 409) {
+      const j = await res.json();
+      showConfirmDialog(
+        t("crcMismatchMsg") + "\n" + t("expectedCRCLabel") + ": " + j.expectedCRC + "\n" + t("crcLabel") + ": " + j.actualCRC,
+        () => doApply(true)
+      );
+      return;
+    }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      showDialog(t("dlgError"), j.error || ("HTTP " + res.status));
+      return;
+    }
+    const crc = res.headers.get("X-Output-CRC32") || "";
+    const size = res.headers.get("X-Output-Size") || "";
+    const blob = await res.blob();
+    if (!(await downloadBlob(blob, outName))) {
+      showDialog(t("dlgError"), t("errSave"));
+      return;
+    }
+    showDialog(t("dlgSuccess"), t("doneMsgApply") + "\n" + outName + "\n" + t("crcLabel") + ": " + crc + "  ·  " + t("sizeLabel") + ": " + fmtSize(Number(size)));
+  } catch (e) {
+    showDialog(t("dlgError"), String(e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t("applyBtn");
+  }
+}
+
+// ---- 作成 ----
+async function doCreate() {
+  const orig = state.files["create-orig"];
+  const mod = state.files["create-mod"];
+  if (!orig) { showDialog(t("dlgError"), t("errOrig")); return; }
+  if (!mod) { showDialog(t("dlgError"), t("errMod")); return; }
+  const format = document.getElementById("create-format").value;
+  const outName = document.getElementById("create-outname").value.trim() || defaultPatchName(mod.name, format);
+  const btn = document.getElementById("create-btn");
+  btn.disabled = true;
+  btn.textContent = t("working");
+  try {
+    const fd = new FormData();
+    fd.append("original", orig);
+    fd.append("modified", mod);
+    fd.append("format", format);
+    const res = await fetch("/api/create", { method: "POST", body: fd });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      showDialog(t("dlgError"), j.error || ("HTTP " + res.status));
+      return;
+    }
+    const crc = res.headers.get("X-Output-CRC32") || "";
+    const size = res.headers.get("X-Output-Size") || "";
+    const blob = await res.blob();
+    if (!(await downloadBlob(blob, outName))) {
+      showDialog(t("dlgError"), t("errSave"));
+      return;
+    }
+    showDialog(t("dlgSuccess"), t("doneMsgCreate") + "\n" + outName + "\n" + t("crcLabel") + ": " + crc + "  ·  " + t("sizeLabel") + ": " + fmtSize(Number(size)));
+  } catch (e) {
+    showDialog(t("dlgError"), String(e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t("createBtn");
+  }
+}
+
+// ---- 言語と設定の反映 ----
+// Android シェル内ではドラッグ&ドロップが無いので、ヒント文言を
+// タップ用に差し替える (Windows / デスクトップでは従来表示のまま)。
+// 判定は保存経路と同じ UniBridge の存在チェックを使う。
+const IS_ANDROID = !!(window.UniBridge && typeof window.UniBridge.beginSave === "function");
+function applyLang() {
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const k = el.getAttribute("data-i18n");
+    el.textContent = (IS_ANDROID && k === "dropHint") ? t("tapHint") : t(k);
+  });
+  for (const id of Object.keys(FIELD_KIND)) {
+    const fn = document.getElementById("fn-" + id);
+    if (!state.files[id]) fn.textContent = t("noFile");
+    if (FIELD_KIND[id] === "rom") renderRomMeta(id);
+  }
+  renderPatchMeta();
+  document.getElementById("apply-btn").textContent = t("applyBtn");
+  document.getElementById("create-btn").textContent = t("createBtn");
+}
+function initSettings() {
+  const sel = document.getElementById("set-lang");
+  sel.value = settings.lang;
+  sel.addEventListener("change", () => {
+    settings.lang = sel.value;
+    LANG = settings.lang === "auto" ? systemLang() : settings.lang;
+    saveSettings();
+    applyLang();
+  });
+  document.querySelectorAll("input[name='crcmode']").forEach((r) => {
+    r.checked = r.value === settings.crcMode;
+    r.addEventListener("change", () => { settings.crcMode = r.value; saveSettings(); });
+  });
+  const md5 = document.getElementById("set-md5");
+  md5.checked = settings.showMD5;
+  md5.addEventListener("change", () => { settings.showMD5 = md5.checked; saveSettings(); applyLang(); });
+  const sha1 = document.getElementById("set-sha1");
+  sha1.checked = settings.showSHA1;
+  sha1.addEventListener("change", () => { settings.showSHA1 = sha1.checked; saveSettings(); applyLang(); });
+  document.getElementById("create-format").addEventListener("change", (e) => {
+    const mod = state.files["create-mod"];
+    const out = document.getElementById("create-outname");
+    if (mod && !out.value) out.value = defaultPatchName(mod.name, e.target.value);
+  });
+}
+
+initFileFields();
+initSettings();
+applyLang();
+showPage("apply");
+</script>
+</body>
+</html>
