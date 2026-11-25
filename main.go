@@ -32,6 +32,7 @@ func main() {
 	mux.HandleFunc("/api/patchinfo", patchInfoHandler)
 	mux.HandleFunc("/api/apply", applyHandler)
 	mux.HandleFunc("/api/create", createHandler)
+	mux.HandleFunc("/api/save", saveHandler)
 	mux.HandleFunc("/api/quit", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 		go func() { time.Sleep(300 * time.Millisecond); os.Exit(0) }()

@@ -27,6 +27,12 @@ const dom = new JSDOM(html, {
       if (url === "/api/patchinfo") {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ name: "p", size: 10, crc32: "00000000", format: "bps", formatName: "BPS", hasSourceCRC: true, sourceCRC: "AABBCCDD", hasTargetCRC: true, targetCRC: "11223344", sourceSize: 3, targetSize: 3 }), headers: { get: () => null } });
       }
+      if (url.startsWith("/api/save")) {
+        // PC 経路: サーバが Downloads へ保存する。保存名を記録する。
+        const name = decodeURIComponent(url.split("name=")[1] || "");
+        savedNames.push(name);
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ path: "C:\\Users\\test\\Downloads\\" + name }), headers: { get: () => null } });
+      }
       if (url === "/api/apply" || url === "/api/create") {
         return Promise.resolve({
           ok: true, status: 200,
