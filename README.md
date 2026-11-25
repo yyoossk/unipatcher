@@ -8,6 +8,40 @@ UniPatcher is a standalone tool that applies ROM patches in many formats and can
 
 No installation is needed; just run the exe.
 
+## スクリーンショット / Screenshots
+
+PC 版の「パッチを当てる」画面です。
+
+The "Apply patch" screen on PC.
+
+ロムとパッチの両方に CRC が表示され、一致していることも分かります。
+
+The CRC is shown for both the ROM and the patch, and you can see that they match.
+
+![PC - Apply patch](screenshots/pc-apply.png)
+
+PC 版の「パッチを作成」画面です。
+
+The "Create patch" screen on PC.
+
+![PC - Create patch](screenshots/pc-create.png)
+
+スマホ版の「パッチを当てる」画面です。
+
+The "Apply patch" screen on a smartphone.
+
+スマホ版では、ドラッグ&ドロップの表記は出ません。
+
+On the smartphone version, no drag & drop wording is shown.
+
+<img src="screenshots/phone-apply.png" width="360" alt="Smartphone - Apply patch">
+
+スマホ版の「パッチを作成」画面です。
+
+The "Create patch" screen on a smartphone.
+
+<img src="screenshots/phone-create.png" width="360" alt="Smartphone - Create patch">
+
 ## できること / What it does
 
 「パッチを当てる」ページでは、パッチファイルを元のロムに当てて、パッチ適用済みのロムを作ります。
