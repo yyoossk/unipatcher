@@ -30,7 +30,11 @@ The "Create patch" screen on a smartphone.
 
 On the "Apply patch" page, you apply a patch file to an original ROM and get a patched ROM.
 
-The original ROM file is never changed, and the result is downloaded as a new file.
+The original ROM file is never changed.
+
+On PC, the result is saved directly to the Downloads folder, and Explorer opens on the file.
+
+On Android, the result is saved to the Downloads folder, and the finished screen shows where it was saved.
 
 On the "Create patch" page, you compare an original ROM with a modified ROM and create a patch file of the differences.
 
@@ -106,7 +110,11 @@ PC 版の「パッチを作成」画面です。
 
 「パッチを当てる」ページでは、パッチファイルを元のロムに当てて、パッチ適用済みのロムを作ります。
 
-元のロムファイルは変更されず、結果は新しいファイルとしてダウンロードされます。
+元のロムファイルは変更されません。
+
+PC 版では、結果はダウンロードフォルダへ直接保存され、保存後にエクスプローラーで開きます。
+
+スマホ版では、結果はダウンロードフォルダへ保存され、完了画面に保存場所が表示されます。
 
 「パッチを作成」ページでは、元のロムと改造済みロムを比べて、差分のパッチファイルを作ります。
 
